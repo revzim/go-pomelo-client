@@ -4,10 +4,10 @@ import "errors"
 
 /**
  * ==========================
- *        Packet錯誤類型
+ *        Packet
  * ==========================
  *
- * ErrWrongPacketType 錯誤的Packet型態
+ * ErrWrongPacketType Packet
  *
  */
 var (

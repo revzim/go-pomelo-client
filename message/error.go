@@ -4,12 +4,12 @@ import "errors"
 
 /**
  * ==========================
- *          訊息錯誤類型
+ *    Message Error Types
  * ==========================
  *
- * ErrWrongMessageType 錯誤的訊息類型
- * ErrInvalidMessage 無效訊息
- * ErrRouteInfoNotFound 找不到路由
+ * ErrWrongMessageType
+ * ErrInvalidMessage
+ * ErrRouteInfoNotFound
  *
  */
 var (

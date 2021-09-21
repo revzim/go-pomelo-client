@@ -8,37 +8,63 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yam8511/go-pomelo-client/codec"
-	"github.com/yam8511/go-pomelo-client/message"
-	"github.com/yam8511/go-pomelo-client/packet"
+	"golang.org/x/net/websocket"
+
+	"github.com/revzim/go-pomelo-client/codec"
+	"github.com/revzim/go-pomelo-client/message"
+	"github.com/revzim/go-pomelo-client/packet"
 )
 
-// Connector is a Pomelo client
-type Connector struct {
-	conn              net.Conn       // low-level connection
-	codec             *codec.Decoder // decoder
-	mid               uint           // message id
-	muConn            sync.RWMutex
-	connecting        bool        // connection status
-	die               chan byte   // connector close channel
-	chSend            chan []byte // send queue
-	connectedCallback func()
+type (
+	// Connector is a Pomelo [nano] client
+	Connector struct {
+		conn              net.Conn       // low-level connection
+		codec             *codec.Decoder // decoder
+		mid               uint           // message id
+		muConn            sync.RWMutex
+		connecting        bool        // connection status
+		die               chan byte   // connector close channel
+		chSend            chan []byte // send queue
+		connectedCallback func()
 
-	// some packet data
-	handshakeData    []byte // handshake data
-	handshakeAckData []byte // handshake ack data
-	heartbeatData    []byte // heartbeat data
+		// some packet data
+		handshakeData    []byte // handshake data
+		handshakeAckData []byte // handshake ack data
+		heartbeatData    []byte // heartbeat data
 
-	// events handler
-	muEvents sync.RWMutex
-	events   map[string]Callback
+		// events handler
+		sync.RWMutex
+		events map[string]Callback
 
-	// response handler
-	muResponses sync.RWMutex
-	responses   map[uint]Callback
-}
+		// response handler
+		muResponses sync.RWMutex
+		responses   map[uint]Callback
+	}
+	// DefaultACK --
+	DefaultHandshakePacket struct {
+		Code int              `json:"code"`
+		Sys  HeartbeatSysOpts `json:"sys"`
+	}
+	// HeartbeatSysOpts --
+	HeartbeatSysOpts struct {
+		Heartbeat int `json:"heartbeat"`
+	}
 
-// SetHandshake 設定握手協定
+	// SysOpts --
+	SysOpts struct {
+		Version string                 `json:"version"`
+		Type    string                 `json:"type"`
+		RSA     map[string]interface{} `json:"rsa"`
+	}
+
+	// HandshakeOpts --
+	HandshakeOpts struct {
+		Sys      SysOpts                `json:"sys"`
+		UserData map[string]interface{} `json:"user"`
+	}
+)
+
+// SetHandshake --
 func (c *Connector) SetHandshake(handshake interface{}) error {
 	data, err := json.Marshal(handshake)
 	if err != nil {
@@ -53,7 +79,7 @@ func (c *Connector) SetHandshake(handshake interface{}) error {
 	return nil
 }
 
-// SetHandshakeAck 設定握手Ack協定
+// SetHandshakeAck --
 func (c *Connector) SetHandshakeAck(handshakeAck interface{}) error {
 	var err error
 	if handshakeAck == nil {
@@ -77,8 +103,8 @@ func (c *Connector) SetHandshakeAck(handshakeAck interface{}) error {
 	return nil
 }
 
-// SetHeartBeart 設定心跳包
-func (c *Connector) SetHeartBeart(heartbeat interface{}) error {
+// SetHeartBeat --
+func (c *Connector) SetHeartBeat(heartbeat interface{}) error {
 	var err error
 	if heartbeat == nil {
 		c.heartbeatData, err = codec.Encode(packet.Heartbeat, nil)
@@ -100,13 +126,41 @@ func (c *Connector) SetHeartBeart(heartbeat interface{}) error {
 	return nil
 }
 
-// Connected 連線之後，會做的事情
+// Connected --
 func (c *Connector) Connected(cb func()) {
 	c.connectedCallback = cb
 }
 
-// Run 啟動連線
-func (c *Connector) Run(addr string) error {
+// InitReqHandshake --
+// func (c *Connector) InitReqHandshake(opts *HandshakeOpts) error {
+// 	return c.SetHandshake(opts)
+// }
+
+// InitReqHandshake --
+func (c *Connector) InitReqHandshake(version, hType string, rsa, userData map[string]interface{}) error {
+	return c.SetHandshake(&HandshakeOpts{
+		Sys: SysOpts{
+			Version: version,
+			Type:    hType,
+			RSA:     rsa,
+		},
+		UserData: userData,
+	})
+}
+
+// InitHandshakeACK --
+func (c *Connector) InitHandshakeACK(heartbeatDuration int) error {
+	ackDataMap := &DefaultHandshakePacket{
+		Code: 200,
+		Sys: HeartbeatSysOpts{
+			Heartbeat: 1,
+		},
+	}
+	return c.SetHandshakeAck(ackDataMap)
+}
+
+// Run --
+func (c *Connector) Run(addr string, ws bool) error {
 	if c.handshakeData == nil {
 		return errors.New("handshake not defined")
 	}
@@ -119,13 +173,18 @@ func (c *Connector) Run(addr string) error {
 	}
 
 	if c.heartbeatData == nil {
-		err := c.SetHeartBeart(nil)
+		err := c.SetHeartBeat(nil)
 		if err != nil {
 			return err
 		}
 	}
-
-	conn, err := net.Dial("tcp", addr)
+	var err error
+	var conn net.Conn
+	if ws {
+		conn, err = websocket.Dial(addr, addr, addr)
+	} else {
+		conn, err = net.Dial("tcp", addr)
+	}
 	if err != nil {
 		return err
 	}
@@ -153,6 +212,7 @@ func (c *Connector) Request(route string, data []byte, callback Callback) error 
 
 	c.setResponseHandler(c.mid, callback)
 	if err := c.sendMessage(msg); err != nil {
+		log.Println(err)
 		c.setResponseHandler(c.mid, nil)
 		return err
 	}
@@ -172,8 +232,8 @@ func (c *Connector) Notify(route string, data []byte) error {
 
 // On add the callback for the event
 func (c *Connector) On(event string, callback Callback) {
-	c.muEvents.Lock()
-	defer c.muEvents.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	c.events[event] = callback
 }
@@ -183,7 +243,6 @@ func (c *Connector) Close() {
 	if !c.connecting {
 		return
 	}
-	// log.Println("連線關閉")
 	c.conn.Close()
 	c.die <- 1
 	c.connecting = false
@@ -195,8 +254,8 @@ func (c *Connector) IsClosed() bool {
 }
 
 func (c *Connector) eventHandler(event string) (Callback, bool) {
-	c.muEvents.RLock()
-	defer c.muEvents.RUnlock()
+	c.RLock()
+	defer c.RUnlock()
 
 	cb, ok := c.events[event]
 	return cb, ok
@@ -226,8 +285,7 @@ func (c *Connector) sendMessage(msg *message.Message) error {
 	if err != nil {
 		return err
 	}
-
-	// log.Printf("資料 ---> %+v,\n整體 ---> %+v\n加密 ---> %+v\n", msg.Data, msg, data)
+	// log.Printf("%+v | %+v | %+v\n", msg.Data, msg, data)
 
 	payload, err := codec.Encode(packet.Data, data)
 	if err != nil {
@@ -244,9 +302,11 @@ func (c *Connector) write() {
 	for {
 		select {
 		case data := <-c.chSend:
-			if _, err := c.conn.Write(data); err != nil {
-				log.Println("傳送訊息失敗", err.Error())
-				// c.Close()
+			if c.conn != nil {
+				if _, err := c.conn.Write(data); err != nil {
+					log.Println("conn write err", err.Error())
+					// c.Close()
+				}
 			}
 
 		case <-c.die:
@@ -265,11 +325,11 @@ func (c *Connector) read() error {
 	for {
 		time.Sleep(time.Second)
 		if c.IsClosed() {
-			return errors.New("連線已經關閉")
+			return errors.New("read err: connector is closed")
 		}
 		n, err := c.conn.Read(buf)
 		if err != nil {
-			// log.Println("讀取資料失敗", err.Error())
+			log.Println("connector read err", err.Error())
 			c.Close()
 			return err
 			// continue
@@ -277,7 +337,7 @@ func (c *Connector) read() error {
 
 		packets, err := c.codec.Decode(buf[:n])
 		if err != nil {
-			// log.Println("解碼資料失敗", err.Error())
+			log.Println("connector read decode err", err.Error())
 			// c.Close()
 			// return
 			continue
@@ -285,7 +345,7 @@ func (c *Connector) read() error {
 
 		for i := range packets {
 			p := packets[i]
-			// log.Println("讀取到資料包 --->", p)
+			// log.Println("packet-->", p)
 			c.processPacket(p)
 		}
 	}
@@ -295,23 +355,16 @@ func (c *Connector) processPacket(p *packet.Packet) {
 	// log.Printf("packet: %+v\n", p)
 	switch p.Type {
 	case packet.Handshake:
-		var handShakeResponse struct {
-			Code int `json:"code"`
-			Sys  struct {
-				Heartbeat int `json:"heartbeat"`
-			} `json:"sys"`
-		}
-
-		err := json.Unmarshal(p.Data, &handShakeResponse)
+		var handshakeResp DefaultHandshakePacket
+		err := json.Unmarshal(p.Data, &handshakeResp)
 		if err != nil {
-			// log.Fatal("握手回傳進行解碼發生錯誤")
 			c.Close()
 			return
 		}
-
-		if handShakeResponse.Code == 200 {
+		log.Println(handshakeResp.Code)
+		if handshakeResp.Code == 200 {
 			go func() {
-				ticker := time.NewTicker(time.Second * time.Duration(handShakeResponse.Sys.Heartbeat))
+				ticker := time.NewTicker(time.Second * time.Duration(handshakeResp.Sys.Heartbeat))
 				for range ticker.C {
 					if c.IsClosed() {
 						return
@@ -324,7 +377,7 @@ func (c *Connector) processPacket(p *packet.Packet) {
 				c.connectedCallback()
 			}
 		} else {
-			// log.Fatal("握手回傳不是200狀態", string(p.Data))
+			log.Fatal("bad packet handshake code, not 200:", string(p.Data))
 			c.Close()
 		}
 	case packet.Data:
@@ -335,7 +388,7 @@ func (c *Connector) processPacket(p *packet.Packet) {
 		c.processMessage(msg)
 
 	case packet.Kick:
-		// log.Fatal("Server 主動斷開連線通知 --->", p)
+		log.Fatal("server kick -->", p)
 		c.Close()
 	}
 }

@@ -3,10 +3,10 @@ package codec
 import (
 	"bytes"
 
-	"github.com/yam8511/go-pomelo-client/packet"
+	"github.com/revzim/go-pomelo-client/packet"
 )
 
-// NewDecoder returns a new decoder that used for decode network bytes slice.
+// NewDecoder -- returns a new decoder that used for decode network bytes slice.
 func NewDecoder() *Decoder {
 	return &Decoder{
 		buf:  bytes.NewBuffer(nil),
@@ -14,7 +14,7 @@ func NewDecoder() *Decoder {
 	}
 }
 
-// A Decoder reads and decodes network data slice
+// Decoder -- reads and decodes network data slice
 type Decoder struct {
 	buf  *bytes.Buffer
 	size int  // last packet length
@@ -92,13 +92,13 @@ func Encode(typ byte, data []byte) ([]byte, error) {
 	buf := make([]byte, dataLen+HeadLength)
 	buf[0] = byte(typ)
 
-	// log.Println("Package 類型 ---> ", typ)
-	// log.Println("Package 類型的 buffer ---> ", buf)
+	// log.Println("Package type ---> ", typ)
+	// log.Println("Package type of buffer ---> ", buf)
 	copy(buf[1:HeadLength], intToBytes(dataLen))
-	// log.Println("Header長度 ---> ", dataLen)
-	// log.Println("Header長度的 buffer ---> ", buf[1:HeadLength])
+	// log.Println("Header length ---> ", dataLen)
+	// log.Println("Header length of buffer ---> ", buf[1:HeadLength])
 	copy(buf[HeadLength:], data)
-	// log.Println("本身資料的 buffer ---> ", buf[HeadLength:])
+	// log.Println("data buffer ---> ", buf[HeadLength:])
 
 	return buf, nil
 }

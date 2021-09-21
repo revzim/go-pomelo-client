@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/yam8511/go-pomelo-client/codec"
+	"github.com/revzim/go-pomelo-client/codec"
 )
 
 // Callback represents the callback type which will be called

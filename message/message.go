@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// New 建立一個空的Message
+// New --
 func New() *Message {
 	return &Message{}
 }
@@ -18,7 +18,7 @@ type Message struct {
 	compressed bool   // is message compressed
 }
 
-// String 以文字顯示Message資料
+// String --
 func (m *Message) String() string {
 	return fmt.Sprintf("Type: %s, ID: %d, Route: %s, Compressed: %t, BodyLength: %d",
 		types[m.Type],
@@ -28,7 +28,7 @@ func (m *Message) String() string {
 		len(m.Data))
 }
 
-// Encode 轉換Message資料為二進制碼
+// Encode --
 func (m *Message) Encode() ([]byte, error) {
 	return Encode(m)
 }

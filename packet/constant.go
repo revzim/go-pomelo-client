@@ -4,14 +4,14 @@ package packet
 
 /**
  * ==========================
- *        Packet 類型
+ *        Packet
  * ==========================
  *
- * Handshake 客户端到服務器的握手请求以及服務器到客户端的握手回應
- * HandshakeAck 客户端到服務器的握手ack
- * Heartbeat 心跳包
- * Data 數據包
- * Kick 服務器主動斷開連接通知
+ * Handshake    01 - Client-to-server handshake request and server-to-client handshake response
+ * HandshakeAck 02 - Client to server handshake ack
+ * Heartbeat    03 - Heartbeat packet
+ * Data         04 - Data packet
+ * Kick         05 - Server active disconnect notification
  *
  */
 const (
