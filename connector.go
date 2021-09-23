@@ -160,7 +160,7 @@ func (c *Connector) InitHandshakeACK(heartbeatDuration int) error {
 }
 
 // Run --
-func (c *Connector) Run(addr string, ws bool) error {
+func (c *Connector) Run(addr string, ws bool, tickrate int64) error {
 	if c.handshakeData == nil {
 		return errors.New("handshake not defined")
 	}
@@ -196,7 +196,7 @@ func (c *Connector) Run(addr string, ws bool) error {
 
 	c.send(c.handshakeData)
 
-	err = c.read()
+	err = c.read(tickrate)
 
 	return err
 }
@@ -319,11 +319,11 @@ func (c *Connector) send(data []byte) {
 	c.chSend <- data
 }
 
-func (c *Connector) read() error {
+func (c *Connector) read(tickrate int64) error {
 	buf := make([]byte, 2048)
 
 	for {
-		time.Sleep(time.Second)
+		time.Sleep(time.Second / time.Duration(tickrate))
 		if c.IsClosed() {
 			return errors.New("read err: connector is closed")
 		}

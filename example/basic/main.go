@@ -46,7 +46,7 @@ func InitPomeloClient(addr string) {
 		}
 	})
 	go func() {
-		err := PomeloClient.Run(addr, true)
+		err := PomeloClient.Run(addr, true, 2)
 		if err != nil {
 			panic(err)
 		}
