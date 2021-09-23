@@ -1,6 +1,6 @@
 # Go Pomelo Client
 
-a [pomelo](https://github.com/NetEase/pomelo) client for golang updated for use with [nano](https://github.com/revzim/nano)
+a [pomelo](https://github.com/NetEase/pomelo) client for golang updated for use with [amoeba](https://github.com/revzim/amoeba)
 
 ```
 go run .\example\basic\main.go --id="test" --token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MzIyNDU1MDIsImlhdCI6MTYzMjI0NDAwMiwiaWQiOiJ0ZXN0IiwibmFtZSI6InRlc3QgcGVyc29uIiwibmJmIjoxNjMyMjQzOTkyfQ.v07XyWCYX1ykMyoU2lbxlcpEzKyXw0sl40gyVqcD4Qc'
